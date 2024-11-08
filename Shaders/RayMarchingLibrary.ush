@@ -1,0 +1,137 @@
+﻿#pragma once
+#include "/Engine/Public/Platform.ush"
+#include "/Engine/Private/Common.ush"
+
+
+#define EPSILON_FLT float(0.001f)
+#define DELTA_FLT float(0.1f)
+#define MAX_FLT float(1e7)
+
+#define RANDOM_SEQUENCE_SIZE 50
+const static float RANDOM_SEQUENCE[RANDOM_SEQUENCE_SIZE] = {
+    0.527, -0.710, -0.034, 0.705, 0.049, -0.110, -0.187, -0.984, 0.563, 0.540, 0.374, 0.270, 0.856, 0.542,
+    -0.130, -0.157, -0.263, 0.989, 0.603, -0.207, -0.729, -0.032, 0.966, -0.293, -0.008, -0.705, -0.497, 
+    -0.120, 0.618, 0.824, 0.580, -0.361, 0.192, 0.664, -0.377, -0.534, -0.131, 0.000, -0.136, 0.110, 0.103, 
+    0.839, 0.308, -0.630, -0.717, 0.985, 0.252, 0.238, 0.587, -0.431
+};
+
+struct Math
+{
+    static float RandSequence(int Index)
+    {
+        return RANDOM_SEQUENCE[Index % RANDOM_SEQUENCE_SIZE];
+    }
+
+    static float Rand(float2 uv)
+    {
+        return frac(sin(dot(uv, float2(12.9898, 78.233))) * 43758.5453);
+    }
+
+    static float VectorMax(float3 vec)
+    {
+        return max(vec.x, max(vec.y, vec.z));
+    }
+    
+    static float4x4 InverseMatrix(float4x4 m) 
+    {
+        float n11 = m[0][0], n12 = m[1][0], n13 = m[2][0], n14 = m[3][0];
+        float n21 = m[0][1], n22 = m[1][1], n23 = m[2][1], n24 = m[3][1];
+        float n31 = m[0][2], n32 = m[1][2], n33 = m[2][2], n34 = m[3][2];
+        float n41 = m[0][3], n42 = m[1][3], n43 = m[2][3], n44 = m[3][3];
+        
+        float t11 = n23 * n34 * n42 - n24 * n33 * n42 + n24 * n32 * n43 - n22 * n34 * n43 - n23 * n32 * n44 + n22 * n33 * n44;
+        float t12 = n14 * n33 * n42 - n13 * n34 * n42 - n14 * n32 * n43 + n12 * n34 * n43 + n13 * n32 * n44 - n12 * n33 * n44;
+        float t13 = n13 * n24 * n42 - n14 * n23 * n42 + n14 * n22 * n43 - n12 * n24 * n43 - n13 * n22 * n44 + n12 * n23 * n44;
+        float t14 = n14 * n23 * n32 - n13 * n24 * n32 - n14 * n22 * n33 + n12 * n24 * n33 + n13 * n22 * n34 - n12 * n23 * n34;
+
+        float det = n11 * t11 + n21 * t12 + n31 * t13 + n41 * t14;
+        float idet = 1.0f / det;
+
+        float4x4 ret;
+
+        ret[0][0] = t11 * idet;
+        ret[0][1] = (n24 * n33 * n41 - n23 * n34 * n41 - n24 * n31 * n43 + n21 * n34 * n43 + n23 * n31 * n44 - n21 * n33 * n44) * idet;
+        ret[0][2] = (n22 * n34 * n41 - n24 * n32 * n41 + n24 * n31 * n42 - n21 * n34 * n42 - n22 * n31 * n44 + n21 * n32 * n44) * idet;
+        ret[0][3] = (n23 * n32 * n41 - n22 * n33 * n41 - n23 * n31 * n42 + n21 * n33 * n42 + n22 * n31 * n43 - n21 * n32 * n43) * idet;
+
+        ret[1][0] = t12 * idet;
+        ret[1][1] = (n13 * n34 * n41 - n14 * n33 * n41 + n14 * n31 * n43 - n11 * n34 * n43 - n13 * n31 * n44 + n11 * n33 * n44) * idet;
+        ret[1][2] = (n14 * n32 * n41 - n12 * n34 * n41 - n14 * n31 * n42 + n11 * n34 * n42 + n12 * n31 * n44 - n11 * n32 * n44) * idet;
+        ret[1][3] = (n12 * n33 * n41 - n13 * n32 * n41 + n13 * n31 * n42 - n11 * n33 * n42 - n12 * n31 * n43 + n11 * n32 * n43) * idet;
+
+        ret[2][0] = t13 * idet;
+        ret[2][1] = (n14 * n23 * n41 - n13 * n24 * n41 - n14 * n21 * n43 + n11 * n24 * n43 + n13 * n21 * n44 - n11 * n23 * n44) * idet;
+        ret[2][2] = (n12 * n24 * n41 - n14 * n22 * n41 + n14 * n21 * n42 - n11 * n24 * n42 - n12 * n21 * n44 + n11 * n22 * n44) * idet;
+        ret[2][3] = (n13 * n22 * n41 - n12 * n23 * n41 - n13 * n21 * n42 + n11 * n23 * n42 + n12 * n21 * n43 - n11 * n22 * n43) * idet;
+
+        ret[3][0] = t14 * idet;
+        ret[3][1] = (n13 * n24 * n31 - n14 * n23 * n31 + n14 * n21 * n33 - n11 * n24 * n33 - n13 * n21 * n34 + n11 * n23 * n34) * idet;
+        ret[3][2] = (n14 * n22 * n31 - n12 * n24 * n31 - n14 * n21 * n32 + n11 * n24 * n32 + n12 * n21 * n34 - n11 * n22 * n34) * idet;
+        ret[3][3] = (n12 * n23 * n31 - n13 * n22 * n31 + n13 * n21 * n32 - n11 * n23 * n32 - n12 * n21 * n33 + n11 * n22 * n33) * idet;
+
+        return ret;
+    }
+
+    float3 TransformVector(float3 InVector, float3 Location, float3 Rotation, float3 Scale = float3(1, 1, 1)) 
+    {
+        float4x4 S = float4x4(
+            float4(Scale.x, 0, 0, 0),
+            float4(0, Scale.y, 0, 0),
+            float4(0, 0, Scale.z, 0),
+            float4(0, 0, 0, 1)
+        );
+        
+        // https://en.wikipedia.org/wiki/Rotation_matrix
+        // Roll and Pitch angle inverted to match Unreal axis
+        float3 e = float3(Rotation.x * PI / 180.0f, Rotation.y * PI / 180.0f, Rotation.z * PI / 180.0f); 
+        float3x3 Roll = {
+            1, 0, 0,
+            0, cos(e.x), sin(e.x),
+            0, -sin(e.x), cos(e.x)
+        };
+        float3x3 Pitch = {
+            cos(e.y), 0, -sin(e.y),
+            0, 1, 0,
+            sin(e.y), 0, cos(e.y)
+        };
+        float3x3 Yaw = {
+            cos(e.z), -sin(e.z), 0,
+            sin(e.z), cos(e.z), 0,
+            0, 0, 1
+        };
+        
+        float3x3 R3x3 = mul(Yaw, mul(Pitch, Roll));
+        float4x4 R = float4x4(
+            float4(R3x3[0], 0),
+            float4(R3x3[1], 0),
+            float4(R3x3[2], 0),
+            float4(0, 0, 0, 1)
+        );
+
+        // Translate
+        float4x4 T = float4x4(
+            float4(1, 0, 0, Location.x),
+            float4(0, 1, 0, Location.y),
+            float4(0, 0, 1, Location.z),
+            float4(0, 0, 0, 1)
+        );
+        
+        float4x4 M = InverseMatrix(mul(mul(T, R), S));
+        float4 Result = mul(M, float4x1(InVector, 1));
+        return Result.xyz;
+    }
+};
+
+struct SDF
+{
+    static float Sphere(float3 pos, float diameter)
+    {
+        return length(pos) - diameter;
+    }
+
+    static float OpUnion(float d1, float d2)
+    {
+        return min(d1, d2);
+    }
+};
+
